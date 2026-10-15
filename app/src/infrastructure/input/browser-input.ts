@@ -1,3 +1,5 @@
+import type { ScreenPoint, SteerCursor, PaddleTravel } from '../../application/drag-steering';
+import { createDragSteering } from '../../application/drag-steering';
 import type { ActionId, InputFrame, InputPort } from '../../application/ports';
 import type { PaddleIntent } from '../../domain/entities';
 
@@ -8,6 +10,13 @@ import type { PaddleIntent } from '../../domain/entities';
  * Every device contributes additively and the sum is clamped, so a player can
  * switch between mouse and keyboard mid-rally without the adapter having to
  * arbitrate a "primary" device.
+ *
+ * Pointers are the exception, because a finger and a mouse want opposite things.
+ * A mouse steers *absolutely*: the paddle goes where the cursor is, which is what
+ * a player expects from a device that lives outside the screen. A finger steers
+ * *relatively*: it lands anywhere and drags, so it never covers the ball. The
+ * mode is chosen per event from `pointerType`, so a hybrid laptop needs no
+ * setting.
  */
 
 export type InputLayout = 'single' | 'versus';
@@ -26,7 +35,7 @@ export interface BrowserInput extends InputPort {
    */
   setLayout(layout: InputLayout): void;
   /**
-   * Where the pointer currently is, for consumers that can do better than a
+   * Where the pointer currently steers, for consumers that can do better than a
    * velocity intent because they also know the paddle's real position.
    * `null` whenever the pointer is not the active steering device.
    */
@@ -42,9 +51,26 @@ export interface BrowserInputOptions {
    * travel at top speed, so a 1:1 hand movement saturates the paddle exactly.
    */
   readonly pointerSensitivity?: number;
+  /**
+   * Half-travel of the steered paddle on each axis, in world units. A relative
+   * drag needs it to turn finger pixels into paddle travel at one scale for both
+   * axes.
+   */
+  readonly travel: PaddleTravel;
+  /** Lateral travel covered by a drag across the viewport's shorter side. */
+  readonly dragGain?: number;
+  /**
+   * Where the steered paddle currently sits, normalised to its travel. A drag
+   * anchors here so the paddle carries on from its own position instead of
+   * teleporting under the finger.
+   */
+  readonly steeredPaddle: () => SteerCursor;
 }
 
 type AxisName = 'x' | 'y';
+
+/** Which mapping the live pointer gesture is using, if any. */
+type SteerMode = 'absolute' | 'relative';
 
 interface AxisBinding {
   readonly axis: AxisName;
@@ -107,6 +133,12 @@ const GAMEPAD_BUTTON_ACTIONS: ReadonlyMap<number, ActionId> = new Map<number, Ac
   [9, 'pause'],
 ]);
 
+/**
+ * Elements that own their own gesture. A tap on the pause chip must not also
+ * yank the paddle, and the shell sits inside the same pointer target.
+ */
+const UI_CONTROLS = 'button, a, input, select, textarea, [role="button"], [contenteditable]';
+
 const GAMEPAD_DEAD_ZONE = 0.15;
 const DEFAULT_POINTER_SENSITIVITY = 4;
 /** How long a pointer intent survives without a new move event, in seconds. */
@@ -122,6 +154,10 @@ const isEditable = (node: EventTarget | null): boolean => {
   const tag = node.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 };
+
+/** True when the event landed on a control that handles its own pointer. */
+const isUiControl = (node: EventTarget | null): boolean =>
+  node instanceof Element && node.closest(UI_CONTROLS) !== null;
 
 const applyBindings = (
   held: ReadonlySet<string>,
@@ -156,12 +192,18 @@ const connectedGamepads = (): readonly Gamepad[] => {
 };
 
 export const createBrowserInput = (options: BrowserInputOptions): BrowserInput => {
-  const { target } = options;
+  const { target, steeredPaddle } = options;
   const sensitivity = options.pointerSensitivity ?? DEFAULT_POINTER_SENSITIVITY;
+  const drag = createDragSteering({
+    travel: options.travel,
+    ...(options.dragGain !== undefined ? { gain: options.dragGain } : {}),
+  });
 
   let layout: InputLayout = options.layout ?? 'single';
   let pointerActive = false;
   let pointerTarget: PointerTarget | null = null;
+  let steerMode: SteerMode | null = null;
+  let steerPointerId: number | null = null;
   let disposed = false;
 
   const held = new Set<string>();
@@ -174,11 +216,45 @@ export const createBrowserInput = (options: BrowserInputOptions): BrowserInput =
   let lastPointerAt = 0;
 
   const resetPointer = (): void => {
+    drag.end();
+    steerMode = null;
+    steerPointerId = null;
     pointerActive = false;
     pointerTarget = null;
     pointerVelocityX = 0;
     pointerVelocityY = 0;
   };
+
+  /**
+   * Capture keeps a finger steering even once it slides over the HUD. It throws
+   * if the pointer is already gone, which is a race, not a failure.
+   */
+  const capture = (pointerId: number): void => {
+    try {
+      target.setPointerCapture(pointerId);
+    } catch {
+      // The gesture ended before we could claim it; the up handler still fires.
+    }
+  };
+
+  const releaseCapture = (pointerId: number): void => {
+    try {
+      if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+    } catch {
+      // Already released by the browser.
+    }
+  };
+
+  /** `null` while the element has no layout, which makes every mapping degenerate. */
+  const surface = (): DOMRect | null => {
+    const rect = target.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 ? rect : null;
+  };
+
+  const localPoint = (event: PointerEvent, rect: DOMRect): ScreenPoint => ({
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  });
 
   const onKeyDown = (event: KeyboardEvent): void => {
     if (isEditable(event.target)) return;
@@ -208,12 +284,11 @@ export const createBrowserInput = (options: BrowserInputOptions): BrowserInput =
   const onBlur = (): void => {
     held.clear();
     gamepadHeld.clear();
+    resetPointer();
   };
 
-  const trackPointer = (event: PointerEvent): void => {
-    const rect = target.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
-
+  /** Absolute mapping: the paddle goes wherever the cursor is. */
+  const trackPointer = (event: PointerEvent, rect: DOMRect): void => {
     const x = clampUnit(((event.clientX - rect.left) / rect.width) * 2 - 1);
     // Screen y grows downwards; the arena's y grows upwards.
     const y = clampUnit(1 - ((event.clientY - rect.top) / rect.height) * 2);
@@ -231,24 +306,76 @@ export const createBrowserInput = (options: BrowserInputOptions): BrowserInput =
     lastPointerAt = now;
     pointerTarget = { x, y };
     pointerActive = true;
+    steerMode = 'absolute';
+    steerPointerId = event.pointerId;
   };
 
   const onPointerMove = (event: PointerEvent): void => {
-    trackPointer(event);
+    const rect = surface();
+    if (rect === null) return;
+
+    if (steerMode === 'relative') {
+      if (event.pointerId !== steerPointerId) return;
+      drag.move(localPoint(event, rect), { width: rect.width, height: rect.height });
+      pointerTarget = drag.cursor;
+      pointerActive = drag.active;
+      return;
+    }
+
+    // A finger that never opened a drag (it started on a HUD control) must not
+    // acquire steering halfway through its own gesture.
+    if (event.pointerType === 'touch') return;
+    trackPointer(event, rect);
   };
 
   const onPointerDown = (event: PointerEvent): void => {
-    // A touch tap has no preceding move, so seed the target without a velocity.
+    if (isUiControl(event.target)) return;
+    const rect = surface();
+    if (rect === null) return;
+
+    if (event.pointerType === 'touch') {
+      // One finger steers; every other touch belongs to the HUD.
+      if (steerMode === 'relative') return;
+      resetPointer();
+      steerMode = 'relative';
+      steerPointerId = event.pointerId;
+      drag.begin(steeredPaddle(), localPoint(event, rect));
+      pointerTarget = drag.cursor;
+      pointerActive = drag.active;
+      capture(event.pointerId);
+      return;
+    }
+
+    // A click has no preceding move on a fresh pointer, so seed the target
+    // without inventing a velocity for it.
     lastPointerAt = performance.now();
     pointerVelocityX = 0;
     pointerVelocityY = 0;
     pointerTarget = null;
-    trackPointer(event);
+    trackPointer(event, rect);
   };
 
-  const onPointerCancel = (): void => {
-    pointerVelocityX = 0;
-    pointerVelocityY = 0;
+  const onPointerUp = (event: PointerEvent): void => {
+    if (steerMode !== 'relative' || event.pointerId !== steerPointerId) return;
+    releaseCapture(event.pointerId);
+    resetPointer();
+  };
+
+  const onPointerCancel = (event: PointerEvent): void => {
+    if (steerPointerId !== null && event.pointerId !== steerPointerId) return;
+    releaseCapture(event.pointerId);
+    resetPointer();
+  };
+
+  /** The browser can revoke capture on its own; the drag has to end with it. */
+  const onLostPointerCapture = (event: PointerEvent): void => {
+    if (steerMode === 'relative' && event.pointerId === steerPointerId) resetPointer();
+  };
+
+  /** A cursor that leaves the arena stops steering it. Touch ends via `up`. */
+  const onPointerLeave = (event: PointerEvent): void => {
+    if (event.pointerType === 'touch' || steerMode === 'relative') return;
+    resetPointer();
   };
 
   /** Pointer events already carry the touch; this only stops the page scrolling. */
@@ -261,7 +388,10 @@ export const createBrowserInput = (options: BrowserInputOptions): BrowserInput =
   window.addEventListener('blur', onBlur);
   target.addEventListener('pointermove', onPointerMove);
   target.addEventListener('pointerdown', onPointerDown);
+  target.addEventListener('pointerup', onPointerUp);
   target.addEventListener('pointercancel', onPointerCancel);
+  target.addEventListener('lostpointercapture', onLostPointerCapture);
+  target.addEventListener('pointerleave', onPointerLeave);
   target.addEventListener('touchmove', onTouchMove, { passive: false });
 
   const sampleGamepads = (near: MutableIntent, far: MutableIntent): void => {
@@ -320,7 +450,9 @@ export const createBrowserInput = (options: BrowserInputOptions): BrowserInput =
     applyBindings(held, FAR_KEYS, far);
     applyBindings(held, ARROW_KEYS, layout === 'versus' ? far : near);
 
-    if (pointerActive) {
+    // A relative drag is purely positional: the consumer resolves the cursor
+    // against the live paddle, so adding a velocity on top would double-count it.
+    if (pointerActive && steerMode === 'absolute') {
       const idle = (performance.now() - lastPointerAt) / 1000;
       if (idle > POINTER_IDLE_TIMEOUT) {
         pointerVelocityX = 0;
@@ -367,7 +499,10 @@ export const createBrowserInput = (options: BrowserInputOptions): BrowserInput =
       window.removeEventListener('blur', onBlur);
       target.removeEventListener('pointermove', onPointerMove);
       target.removeEventListener('pointerdown', onPointerDown);
+      target.removeEventListener('pointerup', onPointerUp);
       target.removeEventListener('pointercancel', onPointerCancel);
+      target.removeEventListener('lostpointercapture', onLostPointerCapture);
+      target.removeEventListener('pointerleave', onPointerLeave);
       target.removeEventListener('touchmove', onTouchMove);
       held.clear();
       pendingActions.clear();

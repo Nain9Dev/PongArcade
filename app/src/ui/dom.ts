@@ -5,6 +5,14 @@
  * is a no-op when the value has not changed: writing an identical `textContent`
  * still invalidates layout in some engines, and at 144 Hz that adds up.
  */
+/**
+ * True on a device whose primary pointer is a finger. It decides three separate
+ * things — the opening render budget, the size of every hit target and which
+ * controls the legend leads with — so the query lives in one place.
+ */
+export const hasCoarsePointer = (): boolean =>
+  window.matchMedia?.('(pointer: coarse)').matches === true;
+
 type Attributes = Readonly<Record<string, string>>;
 
 export const el = <K extends keyof HTMLElementTagNameMap>(

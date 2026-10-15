@@ -27,7 +27,16 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
-    open: true,
+    port: 5320,
+    strictPort: true,
+    host: '127.0.0.1',
+    allowedHosts: ['pong.localhost'],
+    open: false,
+  },
+  preview: {
+    port: 5321,
+    strictPort: true,
+    host: '127.0.0.1',
+    allowedHosts: ['pong.localhost'],
   },
 });

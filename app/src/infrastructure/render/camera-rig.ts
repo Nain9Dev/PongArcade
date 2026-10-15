@@ -31,6 +31,30 @@ const PROFILES: Readonly<Record<CameraMode, ModeProfile>> = {
 /** Frame-rate independent exponential approach factor. */
 const approach = (rate: number, dt: number): number => 1 - Math.exp(-rate * dt);
 
+/** The aspect the profile FOVs above were tuned at. */
+const REFERENCE_ASPECT = 16 / 9;
+
+/** Past this the projection stretches the arena more than it reveals of it. */
+const MAX_VERTICAL_FOV = 88;
+
+/**
+ * A perspective camera fixes its *vertical* field, so a narrow viewport crops the
+ * horizontal one — and this arena is far wider than it is tall. On a phone held
+ * upright that puts the side walls off screen and the ball leaves the frame
+ * sideways with no warning.
+ *
+ * Below the reference aspect the vertical field is widened by exactly as much as
+ * it takes to hold the horizontal field the profile was tuned for. At or above
+ * it nothing changes, so no desktop view moves.
+ */
+const verticalFovFor = (baseFov: number, aspect: number): number => {
+  if (!(aspect > 0) || aspect >= REFERENCE_ASPECT) return baseFov;
+  const halfVertical = THREE.MathUtils.degToRad(baseFov) * 0.5;
+  const halfHorizontal = Math.atan(Math.tan(halfVertical) * REFERENCE_ASPECT);
+  const widened = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfHorizontal) / aspect));
+  return Math.min(widened, MAX_VERTICAL_FOV);
+};
+
 /**
  * Drives the camera for all three view modes, including damped shake and the
  * speed-driven FOV kick.
@@ -49,6 +73,7 @@ export class CameraRig {
 
   private readonly arena: Arena;
   private readonly paddleZ: number;
+  private aspect: number;
 
   private readonly eye = new THREE.Vector3();
   private readonly target = new THREE.Vector3();
@@ -65,7 +90,8 @@ export class CameraRig {
   constructor(arena: Arena, aspect: number) {
     this.arena = arena;
     this.paddleZ = paddlePlaneZ(arena);
-    this.fov = PROFILES.chase.fov;
+    this.aspect = aspect;
+    this.fov = verticalFovFor(PROFILES.chase.fov, aspect);
     this.camera = new THREE.PerspectiveCamera(this.fov, aspect, 0.1, arena.halfDepth * 12);
   }
 
@@ -88,6 +114,7 @@ export class CameraRig {
   }
 
   setAspect(aspect: number): void {
+    this.aspect = aspect;
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
   }
@@ -100,9 +127,15 @@ export class CameraRig {
     const profile = PROFILES[this.mode];
     this.computeFraming(focus);
 
+    const targetFov =
+      verticalFovFor(profile.fov, this.aspect) +
+      focus.speed01 * focus.speed01 * profile.fovKick * this.motionScale;
+
     if (!this.initialised) {
       this.eye.copy(this.desiredEye);
       this.target.copy(this.desiredTarget);
+      // Opening on a phone must not zoom out over the first second.
+      this.fov = targetFov;
       this.initialised = true;
     } else {
       this.eye.lerp(this.desiredEye, approach(profile.positionRate, dt));
@@ -123,7 +156,6 @@ export class CameraRig {
     this.camera.lookAt(this.target);
     this.camera.rotateZ(Math.sin(t * 29.4) * amplitude * 0.05);
 
-    const targetFov = profile.fov + focus.speed01 * focus.speed01 * profile.fovKick * this.motionScale;
     this.fov += (targetFov - this.fov) * approach(5, dt);
     if (Math.abs(this.camera.fov - this.fov) > 1e-3) {
       this.camera.fov = this.fov;

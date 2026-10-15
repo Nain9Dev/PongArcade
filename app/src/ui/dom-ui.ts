@@ -8,7 +8,7 @@ import type {
 } from '../application/ports';
 import type { DifficultyId } from '../domain/ai/difficulty';
 import { AI_PROFILES, DIFFICULTY_ORDER } from '../domain/ai/difficulty';
-import { el, focusablesIn, setClass, setFlag, setHidden, setText } from './dom';
+import { el, focusablesIn, hasCoarsePointer, setClass, setFlag, setHidden, setText } from './dom';
 
 /**
  * Arena units per second translated into a plausible-looking km/h. The arena has
@@ -46,6 +46,12 @@ const CONTROLS: readonly (readonly [string, string])[] = [
   ['R', 'Reiniciar'],
   ['C', 'Cambiar cámara'],
   ['M', 'Silenciar'],
+];
+
+/** Touch bindings. They lead the legend on a device without a mouse. */
+const TOUCH_CONTROLS: readonly (readonly [string, string])[] = [
+  ['Arrastrar', 'Mueve la pala cercana desde donde esté, sin taparla con el dedo'],
+  ['Tocar', 'Pausa, cámara y audio, en la barra de arriba'],
 ];
 
 const DEFAULT_MODE: GameModeId = 'single';
@@ -196,10 +202,14 @@ export const createDomUi = (root: HTMLElement): UiPort => {
   );
   playButton.addEventListener('click', () => emit({ type: 'start', mode, difficulty }));
 
+  // A phone player is told about the drag first; the keyboard rows stay for the
+  // tablet-with-a-keyboard case rather than being hidden outright.
+  const legendRows = hasCoarsePointer() ? [...TOUCH_CONTROLS, ...CONTROLS] : CONTROLS;
+
   const legend = el(
     'ul',
     { class: 'legend' },
-    CONTROLS.map(([keys, description]) =>
+    legendRows.map(([keys, description]) =>
       el('li', { class: 'legend__row' }, [
         el('kbd', { class: 'legend__keys' }, [keys]),
         el('span', { class: 'legend__text' }, [description]),

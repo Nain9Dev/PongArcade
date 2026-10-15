@@ -413,9 +413,11 @@
     border-color var(--dur-fast) var(--ease-out);
 }
 
-.ui .chip:hover {
-  background: linear-gradient(180deg, #1b2246, var(--plate-face));
-  border-color: rgb(148 163 184 / 0.45);
+@media (hover: hover) {
+  .ui .chip:hover {
+    background: linear-gradient(180deg, #1b2246, var(--plate-face));
+    border-color: rgb(148 163 184 / 0.45);
+  }
 }
 
 .ui .chip:active {

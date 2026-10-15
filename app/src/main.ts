@@ -3,6 +3,7 @@ import type { Side } from './domain/arena';
 import type { PaddleIntent } from './domain/entities';
 import type { DomainEvent } from './domain/events';
 import type { MatchSnapshot } from './domain/match';
+import { paddleBounds } from './domain/physics';
 import { createRng, randomSeed } from './domain/rng';
 import { GameLoop } from './application/game-loop';
 import type { CameraMode, GameModeId, HudView, QualityLevel, UiIntent } from './application/ports';
@@ -15,6 +16,7 @@ import { createBrowserInput } from './infrastructure/input/browser-input';
 import { createThreeRenderer } from './infrastructure/render/three-renderer';
 import { createLocalStorage } from './infrastructure/storage/local-storage';
 import { createDomUi } from './ui/dom-ui';
+import { hasCoarsePointer } from './ui/dom';
 import { createCommentary } from './ui/personality';
 import './ui/styles.css';
 import './ui/hud-3d.css';
@@ -58,7 +60,19 @@ const bootstrap = (): void => {
 
   const renderer = createThreeRenderer();
   const audio = createWebAudio();
-  const input = createBrowserInput({ target: root });
+
+  // Relative dragging steers from wherever the paddle already is, so the
+  // adapter needs both its travel and a live read of its position.
+  const bounds = paddleBounds(session.arena, session.rules.paddle);
+  const travel = { x: bounds.maxX, y: bounds.maxY };
+  const input = createBrowserInput({
+    target: root,
+    travel,
+    steeredPaddle: () => {
+      const paddle = session.snapshot().paddles.near;
+      return { x: paddle.x / travel.x, y: paddle.y / travel.y };
+    },
+  });
   const clock = createRafClock();
   const ui = createDomUi(root);
   const commentary = createCommentary(root);
@@ -68,8 +82,17 @@ const bootstrap = (): void => {
   renderer.setPerspective('near');
   audio.setMuted(prefs.muted);
 
+  // A phone has no hover, a finger-sized target and a GPU that cannot afford the
+  // desktop pixel budget. The adaptive step still climbs back up from here on a
+  // device that turns out to have headroom.
+  const coarsePointer = hasCoarsePointer();
+  const maxPixelRatio = coarsePointer ? 1.5 : 2;
+
   let cameraMode: CameraMode = prefs.cameraMode;
-  let quality: QualityLevel = 'high';
+  let quality: QualityLevel = coarsePointer ? 'medium' : 'high';
+  // A phone must not spend its first seconds rendering a desktop frame before
+  // the adaptive step notices and drops the level.
+  if (quality !== 'high') renderer.setQuality(quality);
   let previous: MatchSnapshot = session.snapshot();
   let current: MatchSnapshot = previous;
   let lowFpsFor = 0;
@@ -279,7 +302,7 @@ const bootstrap = (): void => {
   const resize = (): void => {
     const width = root.clientWidth || window.innerWidth;
     const height = root.clientHeight || window.innerHeight;
-    renderer.resize(width, height, Math.min(window.devicePixelRatio, 2));
+    renderer.resize(width, height, Math.min(window.devicePixelRatio, maxPixelRatio));
   };
   resize();
   window.addEventListener('resize', resize);

@@ -239,9 +239,13 @@ body {
     background-color var(--dur-fast) var(--ease-out);
 }
 
-.chip:hover {
-  border-color: var(--c-line-strong);
-  background: var(--c-surface-strong);
+/* Touch engines latch :hover after a tap, and the HUD chips stay on screen for
+   the rest of the rally wearing it. Gate them on a real hovering device. */
+@media (hover: hover) {
+  .chip:hover {
+    border-color: var(--c-line-strong);
+    background: var(--c-surface-strong);
+  }
 }
 
 .chip__key {
@@ -736,4 +740,43 @@ body {
     background: var(--c-surface);
     border: 2px solid var(--c-line);
   }
+}
+
+/* -------------------------------------------------------------- Touch -- */
+
+/*
+ * A finger has no hover to aim with and no pixel precision, so every control
+ * the player reaches for mid-rally grows to the 44 px both platform guidelines
+ * ask for. The values are the same knobs the base rules use, just floored.
+ */
+@media (pointer: coarse) {
+  .chip {
+    min-height: 2.75rem;
+    padding: var(--sp-2) var(--sp-4);
+  }
+
+  .hud__controls {
+    gap: var(--sp-3);
+  }
+
+  .button {
+    min-height: 3rem;
+  }
+
+  .option {
+    min-height: 3.25rem;
+  }
+}
+
+/*
+ * The arena is a drag surface, so the platform's own touch affordances get in
+ * the way: the grey tap flash fires on every steering gesture, a long press
+ * offers to copy the HUD, and a fast drag selects the scoreboard text.
+ */
+.ui,
+#app > canvas {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
