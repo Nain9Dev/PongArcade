@@ -1,5 +1,7 @@
 # Pong Arcade 3D — Deterministic 3D WebGL Arcade Engine
 
+[![Language: English](https://img.shields.io/badge/Language-English-blue.svg)](#)
+[![Versión en Español](https://img.shields.io/badge/Versión-Español-red.svg)](README.es.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Three.js](https://img.shields.io/badge/Three.js-0.180-black?logo=three.js&logoColor=white)](https://threejs.org/)
 [![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-brightgreen)](docs/20-architecture.md)
