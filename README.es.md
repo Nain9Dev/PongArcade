@@ -1,3 +1,9 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/banner-light.svg">
+  <img alt="Plano arquitectónico de Pong Arcade 3D" src="docs/assets/banner-dark.svg" width="100%">
+</picture>
+
 # Pong Arcade 3D — Motor arcade 3D WebGL determinista
 
 [![Language: English](https://img.shields.io/badge/Language-English-blue.svg)](README.md)
