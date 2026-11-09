@@ -27,3 +27,11 @@ Requirements defined using EARS (Easy Approach to Requirements Syntax).
 - **REQ-012 (Aspect-Aware Field of View):** In portrait mode on mobile devices, the camera rig shall dynamically adjust vertical FOV to maintain arena walls within visible bounds.
 - **REQ-013 (Touch-Accessible Controls):** On touch devices, all interactive elements shall provide a minimum hit target size of 44x44 CSS pixels.
 - **REQ-014 (Local Records Persistence):** The system shall persist personal bests and audio preferences in localStorage without server dependencies.
+
+## Discoverability
+
+- **REQ-015 (Canonical and Description):** When a crawler fetches the site root, the page shall carry one canonical link equal to `https://pong.naindev.com/` and one meta description of 70 to 160 characters.
+- **REQ-016 (Social Metadata):** When a link to the site is shared, the page shall provide Open Graph and Twitter `summary_large_image` metadata whose URL equals the canonical and whose image is an absolute URL.
+- **REQ-017 (Structured Data):** When a search or AI engine reads the page, it shall find `SoftwareApplication` and `VideoGame` JSON-LD that names the author by `@id` and links the source repository.
+- **REQ-018 (Crawler Files):** When a crawler requests `/robots.txt`, the site shall allow everything and advertise `/sitemap.xml`, which lists only the root.
+- **REQ-019 (AI Summary):** When an AI engine requests `/llms.txt`, the site shall serve an English Markdown summary with links to the game, the repository and the author's site.

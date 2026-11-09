@@ -21,6 +21,11 @@ Every requirement maps to the automated test suite that verifies it.
 | **REQ-012** Aspect-Aware Field of View | `CameraRig` portrait aspect clamping | — | Covered |
 | **REQ-013** Touch-Accessible Hit Targets | DOM shell CSS & legend elements | — | Enforced by CSS inspection |
 | **REQ-014** Local Records Persistence | `tests/application/session.spec.ts` | 17 | Covered |
+| **REQ-015** Canonical and Description | `tests/site/seo.spec.ts` (source and built `index.html`) | 4 | Covered |
+| **REQ-016** Social Metadata (and author link) | `tests/site/seo.spec.ts` | 4 | Covered |
+| **REQ-017** Structured Data | `tests/site/seo.spec.ts` | 2 | Covered |
+| **REQ-018** Crawler Files | `tests/site/seo.spec.ts` (`robots.txt`, `sitemap.xml`) | 2 | Covered |
+| **REQ-019** AI Summary | `tests/site/seo.spec.ts` (`llms.txt`) | 1 | Covered |
 | **Supporting** 3D Vector Math | `tests/domain/vec3.spec.ts` | 16 | Covered |
 | **Supporting** Arena Geometric Bounds | `tests/domain/arena.spec.ts` | 4 | Covered |
 
