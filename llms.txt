@@ -1,0 +1,9 @@
+# Pong 3D
+
+> Browser-based 3D Pong with a deterministic physics engine, four AI difficulty levels and a neon arena rendered in Three.js. Plays on desktop and touch devices with no installation. The interface is in Spanish.
+
+## Links
+
+- [Play the game](https://pong.naindev.com/): runs entirely in the browser
+- [Source code](https://github.com/Nain9Dev/PongArcade): TypeScript, hexagonal architecture, unit and property-based tests
+- [NainDev](https://www.naindev.com/): the author's main site

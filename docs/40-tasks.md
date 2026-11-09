@@ -51,6 +51,10 @@ Labels: `[A]` agent alone · `[M]` mixed, needs a human action · `[H]` human on
       Implements: NainDev documentation standard
       Verified: Created `00-charter.md`, `10-requirements.md`, `11-open-questions.md`, `20-architecture.md`, `30-decisions/`, `40-tasks.md`, `50-traceability.md`, `60-runbook.md`.
 
+- [x] **T-204** `[A]` Discoverability baseline: canonical, social metadata, JSON-LD, `robots.txt`, `sitemap.xml`, `llms.txt`
+      Implements: REQ-015 to REQ-019
+      Verified: `tests/site/seo.spec.ts` written first and seen failing; `npm run check` green; the build leaves the bundle hashes unchanged and the root files are served by Pages as they sit in the repository root.
+
 ## Open
 
 - [ ] **T-203** `[M]` GitHub Pages production deployment verification on `pong.naindev.com`

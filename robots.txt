@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pong.naindev.com/sitemap.xml
