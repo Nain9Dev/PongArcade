@@ -26,6 +26,10 @@ Every requirement maps to the automated test suite that verifies it.
 | **REQ-017** Structured Data | `tests/site/seo.spec.ts` | 2 | Covered |
 | **REQ-018** Crawler Files | `tests/site/seo.spec.ts` (`robots.txt`, `sitemap.xml`) | 2 | Covered |
 | **REQ-019** AI Summary | `tests/site/seo.spec.ts` (`llms.txt`) | 1 | Covered |
+| **REQ-020** Web App Manifest | `tests/site/install.spec.ts` (`manifest.webmanifest`) | 2 | Covered |
+| **REQ-021** Install Icons | `tests/site/install.spec.ts` (declared icons, PNG size) | 1 | Covered |
+| **REQ-022** Opaque Icons and Safe Zone | `tests/site/install.spec.ts`, `tests/support/png.ts` | 2 | Covered |
+| **REQ-023** Home-Screen Head Tags | `tests/site/install.spec.ts` (source and built `index.html`) | 4 | Covered |
 | **Supporting** 3D Vector Math | `tests/domain/vec3.spec.ts` | 16 | Covered |
 | **Supporting** Arena Geometric Bounds | `tests/domain/arena.spec.ts` | 4 | Covered |
 
