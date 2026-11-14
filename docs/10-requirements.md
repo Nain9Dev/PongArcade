@@ -35,3 +35,10 @@ Requirements defined using EARS (Easy Approach to Requirements Syntax).
 - **REQ-017 (Structured Data):** When a search or AI engine reads the page, it shall find `SoftwareApplication` and `VideoGame` JSON-LD that names the author by `@id` and links the source repository.
 - **REQ-018 (Crawler Files):** When a crawler requests `/robots.txt`, the site shall allow everything and advertise `/sitemap.xml`, which lists only the root.
 - **REQ-019 (AI Summary):** When an AI engine requests `/llms.txt`, the site shall serve an English Markdown summary with links to the game, the repository and the author's site.
+
+## Installability
+
+- **REQ-020 (Web App Manifest):** When a browser requests `/manifest.webmanifest`, the site shall serve a manifest that declares `name` `Pong Arcade 3D`, `short_name` `Pong Arcade`, `display` `standalone`, `id`, `start_url` and `scope` `./`, `lang` `es`, `dir` `ltr`, the meta description of the page, and `theme_color` and `background_color` `#04050c`, and that does not declare `prefer_related_applications`.
+- **REQ-021 (Install Icons):** The manifest shall declare three PNG icons that exist at the declared size, one purpose per entry: 192 px and 512 px with purpose `any`, and 512 px with purpose `maskable`.
+- **REQ-022 (Opaque Icons and Safe Zone):** The maskable icon and the 180 px `apple-touch-icon` shall be opaque edge to edge, and the maskable icon shall keep the mark inside the centred circle whose radius is 40% of its width.
+- **REQ-023 (Home-Screen Head Tags):** The page shall link the manifest and the `apple-touch-icon` with paths relative to the site root, and shall carry `mobile-web-app-capable` and `apple-mobile-web-app-capable` set to `yes`, an `apple-mobile-web-app-title` equal to the manifest `short_name`, `apple-mobile-web-app-status-bar-style` set to `black`, and one `theme-color` equal to the manifest `theme_color`.

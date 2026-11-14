@@ -55,7 +55,18 @@ Labels: `[A]` agent alone · `[M]` mixed, needs a human action · `[H]` human on
       Implements: REQ-015 to REQ-019
       Verified: `tests/site/seo.spec.ts` written first and seen failing; `npm run check` green; the build leaves the bundle hashes unchanged and the root files are served by Pages as they sit in the repository root.
 
+- [x] **T-205** `[A]` Install contract test for the manifest, the icons and the head tags (`tests/site/install.spec.ts`)
+      Implements: REQ-020 to REQ-023
+      Verified: written before the files it reads; its 9 tests failed on the tree without the manifest, the icons and the tags.
+
+- [x] **T-206** `[A]` Installable site: web app manifest, install icons rendered from the favicon, home-screen head tags
+      Implements: REQ-020 to REQ-023
+      Verified: `npm run check` green; the build leaves the bundle hashes unchanged; Chrome reports no installability error (`Page.getInstallabilityErrors`) for a local copy of the files a commit publishes.
+
 ## Open
 
 - [ ] **T-203** `[M]` GitHub Pages production deployment verification on `pong.naindev.com`
       Done when: `https://pong.naindev.com` is verified live and matches latest build.
+
+- [ ] **T-207** `[M]` Install verification on the live site (Android Chrome and iOS Safari)
+      Done when: the live manifest answers 200 with a manifest media type and the owner has installed the site on both phones (icon uncropped, label `Pong Arcade`, no browser bar).
